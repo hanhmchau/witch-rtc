@@ -57,7 +57,7 @@
 
             let webSocketUrl = '@routes.WebRTCController.signalingSocket().webSocketURL()';
             if (location.protocol === 'https:') {
-                webSocketUrl.replace('ws', 'wss');
+                webSocketUrl = webSocketUrl.replace('ws', 'wss');
             }
 
             let webSocket = new WebSocket(webSocketUrl);
