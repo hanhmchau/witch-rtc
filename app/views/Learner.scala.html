@@ -25,13 +25,7 @@
         <script src="@routes.Assets.versioned("javascripts/lib/adapter.js")" type="text/javascript"></script>
         <script src="@routes.Assets.versioned("javascripts/main.js")" type="text/javascript"></script>
         <script>
-            let localVideo = document.getElementById('local-video');
             let remoteVideo = document.getElementById('remote-video');
-
-            const mediaStreamConstraints = {
-                audio: false,
-                video: false
-            };
 
             const offerOptions = {
                 offerToReceiveVideo: 1,
@@ -61,7 +55,12 @@
             let connectButton = document.getElementById('connect');
             let callButton = document.getElementById('call');
 
-            let webSocket = new WebSocket('@routes.WebRTCController.signalingSocket().webSocketURL()');
+            let webSocketUrl = '@routes.WebRTCController.signalingSocket().webSocketURL()';
+            if (location.protocol === 'https:') {
+                webSocketUrl.replace('ws', 'wss');
+            }
+
+            let webSocket = new WebSocket(webSocketUrl);
 
             let sendToServer = (data) => {
                 webSocket.send(JSON.stringify(data));

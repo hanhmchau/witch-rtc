@@ -13,8 +13,8 @@ public class Application extends Controller {
         return ok(views.html.Index.render());
     }
 
-    public Result client() {
-        return ok(views.html.Client.render());
+    public Result learner() {
+        return ok(views.html.Learner.render());
     }
 
     public Result instructor() {

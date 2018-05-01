@@ -4,7 +4,7 @@
 
 # Home page
 GET     /                           controllers.Application.index()
-GET     /client                     controllers.Application.client()
+GET     /learner                    controllers.Application.learner()
 GET     /instructor                 controllers.Application.instructor()
 
 # Web socket

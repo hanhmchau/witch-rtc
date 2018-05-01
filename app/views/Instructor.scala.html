@@ -27,9 +27,6 @@
                 video: true,
             };
 
-            const offerOptions = {
-            };
-
             const CLIENT_TYPE = {
                 HELLO: @commons.Const.ClientMessageType.HELLO.value,
                 BYE: @commons.Const.ClientMessageType.BYE.value,
@@ -50,11 +47,14 @@
             };
 
             let nameTxt = document.getElementById('name');
-            let calleeTxt = document.getElementById('callee');
             let connectButton = document.getElementById('connect');
-//            let callButton = document.getElementById('call');
 
-            let webSocket = new WebSocket('@routes.WebRTCController.signalingSocket().webSocketURL()');
+            let webSocketUrl = '@routes.WebRTCController.signalingSocket().webSocketURL()';
+            if (location.protocol === 'https:') {
+                webSocketUrl.replace('ws', 'wss');
+            }
+
+            let webSocket = new WebSocket(webSocketUrl);
 
             let sendToServer = (data) => {
                 webSocket.send(JSON.stringify(data));
@@ -86,22 +86,6 @@
                     name: yourName
                 });
             });
-
-//            callButton.addEventListener('click', () => {
-//                calleeName = calleeTxt.value;
-//                console.log(`Calling ${calleeName}...`);
-//                peerConnection.createOffer(offerOptions)
-//                        .then(offer => peerConnection.setLocalDescription(offer))
-//                        .then(() => {
-//                            sendToServer({
-//                                type: CLIENT_TYPE.CALL,
-//                                name: yourName,
-//                                callee: calleeName,
-//                                sdp: peerConnection.localDescription
-//                            });
-//                        })
-//                        .catch(reason => console.log(reason));
-//            });
 
             //when the websocket responds to you:
             //possible situations:
