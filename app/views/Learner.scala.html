@@ -80,8 +80,8 @@
                 }
             };
 
-            peerConnection.onaddstream = (event) => {
-                remoteVideo.srcObject = event.stream;
+            peerConnection.ontrack = (event) => {
+                remoteVideo.srcObject = event.streams[0];
             };
 
             connectButton.addEventListener('click', () => {

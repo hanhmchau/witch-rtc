@@ -74,10 +74,6 @@
                 }
             };
 
-            peerConnection.onaddstream = (event) => {
-                remoteVideo.srcObject = event.stream;
-            };
-
             connectButton.addEventListener('click', () => {
                 yourName = nameTxt.value;
                 nameTxt.disabled = true;
@@ -128,7 +124,9 @@
             let initialize = () => {
                 navigator.mediaDevices.getUserMedia(mediaStreamConstraints)
                         .then(stream => localVideo.srcObject = stream)
-                        .then(stream => peerConnection.addStream(stream))
+                        .then(stream => {
+                            stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
+                        })
                         .catch(reason => console.log(reason));
             };
 
