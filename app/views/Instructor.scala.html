@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+
+<html>
+    <head>
+        <title>Instructor</title>
+        <link rel="stylesheet" media="screen" href="@routes.Assets.versioned("stylesheets/main.css")">
+        <link rel="shortcut icon" type="image/png" href="@routes.Assets.versioned("images/favicon.png")">
+    </head>
+    <body>
+        <label>Your name:</label>
+        <br>
+        <input id="name" type="text" value="Witch" autocomplete="off" disabled />
+        <br>
+        <button id="connect">Connect</button>
+        <br><br>
+        <video height="200" autoplay id="local-video"></video>
+        @*<video height="200" autoplay id="remote-video"></video>*@
+        <br>
+        <script src="@routes.Assets.versioned("javascripts/jquery-3.2.1.min.js")" type="text/javascript"></script>
+        <script src="@routes.Assets.versioned("javascripts/lib/adapter.js")" type="text/javascript"></script>
+        <script src="@routes.Assets.versioned("javascripts/main.js")" type="text/javascript"></script>
+        <script>
+            let localVideo = document.getElementById('local-video');
+            let remoteVideo = document.getElementById('remote-video');
+
+            const mediaStreamConstraints = {
+                video: true,
+            };
+
+            const offerOptions = {
+            };
+
+            const CLIENT_TYPE = {
+                HELLO: @commons.Const.ClientMessageType.HELLO.value,
+                BYE: @commons.Const.ClientMessageType.BYE.value,
+                CALL: @commons.Const.ClientMessageType.CALL.value,
+                ICE: @commons.Const.ClientMessageType.ICE.value
+            };
+
+            const iceServers = {
+                'iceServers': [{
+                    'urls': 'stun:stun.services.mozilla.com'
+                }, {
+                    'urls': 'stun:stun.l.google.com:19302'
+                }, {
+                    'urls': 'turn:numb.viagenie.ca',
+                    'credential': 'beaver',
+                    'username': 'webrtc.websitebeaver@@gmail.com'
+                }]
+            };
+
+            let nameTxt = document.getElementById('name');
+            let calleeTxt = document.getElementById('callee');
+            let connectButton = document.getElementById('connect');
+//            let callButton = document.getElementById('call');
+
+            let webSocket = new WebSocket('@routes.WebRTCController.signalingSocket().webSocketURL()');
+
+            let sendToServer = (data) => {
+                webSocket.send(JSON.stringify(data));
+            };
+
+            let peerConnection = new RTCPeerConnection(iceServers);
+            let yourName, calleeName;
+
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    sendToServer({
+                        type: CLIENT_TYPE.ICE,
+                        ice: event.candidate,
+                        name: yourName,
+                        callee: calleeName,
+                    });
+                }
+            };
+
+            peerConnection.onaddstream = (event) => {
+                remoteVideo.srcObject = event.stream;
+            };
+
+            connectButton.addEventListener('click', () => {
+                yourName = nameTxt.value;
+                nameTxt.disabled = true;
+                sendToServer({
+                    type: CLIENT_TYPE.HELLO,
+                    name: yourName
+                });
+            });
+
+//            callButton.addEventListener('click', () => {
+//                calleeName = calleeTxt.value;
+//                console.log(`Calling ${calleeName}...`);
+//                peerConnection.createOffer(offerOptions)
+//                        .then(offer => peerConnection.setLocalDescription(offer))
+//                        .then(() => {
+//                            sendToServer({
+//                                type: CLIENT_TYPE.CALL,
+//                                name: yourName,
+//                                callee: calleeName,
+//                                sdp: peerConnection.localDescription
+//                            });
+//                        })
+//                        .catch(reason => console.log(reason));
+//            });
+
+            //when the websocket responds to you:
+            //possible situations:
+            webSocket.onmessage = (event) => {
+                let data = JSON.parse(event.data);
+
+                if (data.response) {
+                    console.log(data.response);
+                    return;
+                }
+
+                if (data.ice) {
+                    peerConnection.addIceCandidate(new RTCIceCandidate(data.ice));
+                    return;
+                }
+
+                if (data.sdp.type === 'offer') {
+                    calleeName = data.name;
+                    peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp))
+                            .then(() => peerConnection.createAnswer())
+                            .then(answer => peerConnection.setLocalDescription(answer))
+                            .then(() => {
+                                sendToServer({
+                                    type: CLIENT_TYPE.CALL,
+                                    name: yourName,
+                                    callee: calleeName,
+                                    sdp: peerConnection.localDescription
+                                });
+                            })
+                            .catch(reason => console.log(reason));
+                }
+            };
+
+            //when you drop off the grid
+            webSocket.onclose = (event) => {
+                console.log('Websocket closing...');
+            };
+
+            // get the video track from your own device and show it to you
+            let initialize = () => {
+                navigator.mediaDevices.getUserMedia(mediaStreamConstraints)
+                        .then(stream => localVideo.srcObject = stream)
+                        .then(stream => peerConnection.addStream(stream))
+                        .catch(reason => console.log(reason));
+            };
+
+            initialize();
+        </script>
+    </body>
+</html>
