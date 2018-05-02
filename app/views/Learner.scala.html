@@ -83,6 +83,7 @@
             peerConnection.ontrack = (event) => {
                 console.log('On track...');
                 remoteVideo.srcObject = event.streams[0];
+                console.log(event);
             };
 
             connectButton.addEventListener('click', () => {
