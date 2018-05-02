@@ -60,18 +60,26 @@
                 webSocket.send(JSON.stringify(data));
             };
 
-            let peerConnection = new RTCPeerConnection(iceServers);
+            let peerConnection;
             let yourName, calleeName;
 
-            peerConnection.onicecandidate = (event) => {
-                if (event.candidate) {
-                    sendToServer({
-                        type: CLIENT_TYPE.ICE,
-                        ice: event.candidate,
-                        name: yourName,
-                        callee: calleeName,
-                    });
-                }
+            let addPeerConnectionEventHandlers = () => {
+                peerConnection.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        sendToServer({
+                            type: CLIENT_TYPE.ICE,
+                            ice: event.candidate,
+                            name: yourName,
+                            callee: calleeName,
+                        });
+                    }
+                };
+            };
+
+            let createPeerConnection = () => {
+                peerConnection = new RTCPeerConnection(iceServers);
+                addPeerConnectionEventHandlers();
+                localVideo.srcObject.getTracks().forEach(track => peerConnection.addTrack(track, localVideo.srcObject));
             };
 
             connectButton.addEventListener('click', () => {
@@ -100,6 +108,7 @@
 
                 if (data.sdp.type === 'offer') {
                     calleeName = data.name;
+                    createPeerConnection();
                     peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp))
                             .then(() => peerConnection.createAnswer())
                             .then(answer => peerConnection.setLocalDescription(answer))
@@ -124,9 +133,6 @@
             let initialize = () => {
                 navigator.mediaDevices.getUserMedia(mediaStreamConstraints)
                         .then(stream => localVideo.srcObject = stream)
-                        .then(stream => {
-                            stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
-                        })
                         .catch(reason => console.log(reason));
             };
 
