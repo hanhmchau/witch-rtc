@@ -39,15 +39,15 @@
             };
 
             const iceServers = {
-                'iceServers': [{
-                    'urls': 'stun:stun.services.mozilla.com'
-                }, {
-                    'urls': 'stun:stun.l.google.com:19302'
-                }, {
-                    'urls': 'turn:numb.viagenie.ca',
-                    'credential': 'beaver',
-                    'username': 'webrtc.websitebeaver@@gmail.com'
-                }]
+                'iceServers':
+                        [{
+                        urls: [
+                            'stun:stun.l.google.com:19302',
+                        ]}, {
+                        urls: 'turn:13.250.13.83:3478?transport=udp',
+                        credential: 'YzYNCouZM1mhqhmseWk6',
+                        username: 'YzYNCouZM1mhqhmseWk6'
+                        }]
             };
 
             let nameTxt = document.getElementById('name');
@@ -81,6 +81,7 @@
             };
 
             peerConnection.ontrack = (event) => {
+                console.log('On track...');
                 remoteVideo.srcObject = event.streams[0];
             };
 
@@ -126,6 +127,9 @@
 
                 if (data.sdp.type === 'answer') {
                     peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp))
+                            .then(() => {
+                                console.log('Successfully received the answer...');
+                            })
                             .catch(reason => console.log(reason));
                 }
             };
