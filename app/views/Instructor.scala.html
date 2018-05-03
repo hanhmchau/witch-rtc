@@ -70,9 +70,11 @@
 
             let peerConnection, canvasConnection;
             let yourName, calleeName;
-            let canvasStream;
 
-            let addPeerConnectionEventHandlers = (connection) => {
+            let createConnection = (stream, streamType) => {
+                let connection = new RTCPeerConnection(iceServers);
+                stream.getTracks().forEach(track => connection.addTrack(track, stream));
+
                 connection.onicecandidate = (event) => {
                     if (event.candidate) {
                         sendToServer({
@@ -80,47 +82,12 @@
                             ice: event.candidate,
                             name: yourName,
                             callee: calleeName,
-                            streamType: STREAM_TYPE.FACE,
+                            streamType: streamType,
                         });
                     }
                 };
-            };
 
-            let createPeerConnection = () => {
-                peerConnection = new RTCPeerConnection(iceServers);
-//                addPeerConnectionEventHandlers(peerConnection);
-                localVideo.srcObject.getTracks().forEach(track => peerConnection.addTrack(track, localVideo.srcObject));
-
-                peerConnection.onicecandidate = (event) => {
-                    if (event.candidate) {
-                        sendToServer({
-                            type: CLIENT_TYPE.ICE,
-                            ice: event.candidate,
-                            name: yourName,
-                            callee: calleeName,
-                            streamType: STREAM_TYPE.FACE,
-                        });
-                    }
-                };
-            };
-
-            let createCanvasConnection = () => {
-                canvasConnection = new RTCPeerConnection(iceServers);
-//                addPeerConnectionEventHandlers(canvasConnection);
-                canvasStream = document.querySelector('.drawing-board-canvas').captureStream();
-                canvasStream.getTracks().forEach(track => canvasConnection.addTrack(track, canvasStream));
-
-                canvasConnection.onicecandidate = (event) => {
-                    if (event.candidate) {
-                        sendToServer({
-                            type: CLIENT_TYPE.ICE,
-                            ice: event.candidate,
-                            name: yourName,
-                            callee: calleeName,
-                            streamType: STREAM_TYPE.CANVAS,
-                        });
-                    }
-                };
+                return connection;
             };
 
             connectButton.addEventListener('click', () => {
@@ -132,6 +99,24 @@
                 });
             });
 
+
+            let createAnswer = (data, connection, streamType) => {
+                connection.setRemoteDescription(new RTCSessionDescription(data.sdp))
+                        .then(() => connection.createAnswer())
+                        .then(answer => connection.setLocalDescription(answer))
+                        .then(() => {
+                            sendToServer({
+                                type: CLIENT_TYPE.CALL,
+                                name: yourName,
+                                callee: calleeName,
+                                sdp: connection.localDescription,
+                                streamType: streamType,
+                            });
+                            console.log('Successfully sending answer...');
+                        })
+                        .catch(reason => console.log(reason));
+            };
+
             //when the websocket responds to you:
             //possible situations:
             webSocket.onmessage = (event) => {
@@ -142,12 +127,10 @@
                     return;
                 }
 
+                let connection = (data.streamType === STREAM_TYPE.FACE) ? peerConnection : canvasConnection;
+
                 if (data.ice) {
-                    if (data.streamType === STREAM_TYPE.FACE) {
-                        peerConnection.addIceCandidate(new RTCIceCandidate(data.ice));
-                    } else {
-                        canvasConnection.addIceCandidate(new RTCIceCandidate(data.ice));
-                    }
+                    connection.addIceCandidate(new RTCIceCandidate(data.ice));
                     return;
                 }
 
@@ -155,37 +138,12 @@
                     console.log('Successfully receiving offer...');
                     calleeName = data.name;
                     if (data.streamType === STREAM_TYPE.FACE) {
-                        createPeerConnection();
-                        peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp))
-                                .then(() => peerConnection.createAnswer())
-                                .then(answer => peerConnection.setLocalDescription(answer))
-                                .then(() => {
-                                    sendToServer({
-                                        type: CLIENT_TYPE.CALL,
-                                        name: yourName,
-                                        callee: calleeName,
-                                        sdp: peerConnection.localDescription,
-                                        streamType: STREAM_TYPE.FACE,
-                                    });
-                                    console.log('Successfully sending face-camera answer...');
-                                })
-                                .catch(reason => console.log(reason));
+                        peerConnection = createConnection(localVideo.srcObject, STREAM_TYPE.FACE);
+                        createAnswer(data, peerConnection, STREAM_TYPE.FACE);
                     } else {
-                        createCanvasConnection();
-                        canvasConnection.setRemoteDescription(new RTCSessionDescription(data.sdp))
-                                .then(() => canvasConnection.createAnswer())
-                                .then(answer => canvasConnection.setLocalDescription(answer))
-                                .then(() => {
-                                    sendToServer({
-                                        type: CLIENT_TYPE.CALL,
-                                        name: yourName,
-                                        callee: calleeName,
-                                        sdp: canvasConnection.localDescription,
-                                        streamType: STREAM_TYPE.CANVAS
-                                    });
-                                    console.log('Successfully sending canvas answer...');
-                                })
-                                .catch(reason => console.log(reason));
+                        let canvas = document.querySelector('canvas');
+                        canvasConnection = createConnection(canvas.captureStream(), STREAM_TYPE.CANVAS);
+                        createAnswer(data, canvasConnection, STREAM_TYPE.CANVAS);
                     }
                 }
             };

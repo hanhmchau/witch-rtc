@@ -78,45 +78,38 @@
                 webSocket.send(JSON.stringify(data));
             };
 
-            let peerConnection = new RTCPeerConnection(iceServers);
-            let canvasConnection = new RTCPeerConnection(iceServers);
             let yourName, calleeName;
 
-            peerConnection.onicecandidate = (event) => {
-                if (event.candidate) {
-                    sendToServer({
-                        type: CLIENT_TYPE.ICE,
-                        ice: event.candidate,
-                        name: yourName,
-                        callee: calleeName,
-                        streamType: STREAM_TYPE.FACE
-                    });
-                }
+            let addOnIceCandidateHandler = (connection, streamType) => {
+                connection.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        sendToServer({
+                            type: CLIENT_TYPE.ICE,
+                            ice: event.candidate,
+                            name: yourName,
+                            callee: calleeName,
+                            streamType: streamType
+                        });
+                    }
+                };
             };
 
-            peerConnection.ontrack = (event) => {
-                console.log('On camera track...');
-                remoteVideo.srcObject = event.streams[0];
-                console.log(event);
+            let addOnTrackHandler = (connection, video) => {
+                connection.ontrack = (event) => {
+                    console.log('On track...');
+                    video.srcObject = event.streams[0];
+                };
             };
 
-            canvasConnection.onicecandidate = (event) => {
-                if (event.candidate) {
-                    sendToServer({
-                        type: CLIENT_TYPE.ICE,
-                        ice: event.candidate,
-                        name: yourName,
-                        callee: calleeName,
-                        streamType: STREAM_TYPE.CANVAS
-                    });
-                }
+            let createConnection = (streamType, video) => {
+                let connection = new RTCPeerConnection(iceServers);
+                addOnIceCandidateHandler(connection, streamType);
+                addOnTrackHandler(connection, video);
+                return connection;
             };
 
-            canvasConnection.ontrack = (event) => {
-                console.log('On canvas track...');
-                canvasVideo.srcObject = event.streams[0];
-                console.log(event);
-            };
+            let peerConnection = createConnection(STREAM_TYPE.FACE, remoteVideo);
+            let canvasConnection = createConnection(STREAM_TYPE.CANVAS, canvasVideo);
 
             connectButton.addEventListener('click', () => {
                 yourName = nameTxt.value;
@@ -127,34 +120,29 @@
                 });
             });
 
+            let createOffer = (connection, offerOptions, streamType) => {
+                connection.createOffer(offerOptions)
+                        .then(offer => connection.setLocalDescription(offer))
+                        .then(() => {
+                            sendToServer({
+                                type: CLIENT_TYPE.CALL,
+                                name: yourName,
+                                callee: calleeName,
+                                sdp: connection.localDescription,
+                                streamType: streamType
+                            });
+                        })
+                        .catch(reason => console.log(reason));
+            };
+
             callButton.addEventListener('click', () => {
                 calleeName = calleeTxt.value;
                 console.log(`Calling ${calleeName}...`);
-                peerConnection.createOffer(faceOfferOptions)
-                        .then(offer => peerConnection.setLocalDescription(offer))
-                        .then(() => {
-                            sendToServer({
-                                type: CLIENT_TYPE.CALL,
-                                name: yourName,
-                                callee: calleeName,
-                                sdp: peerConnection.localDescription,
-                                streamType: STREAM_TYPE.FACE
-                            });
-                        })
-                        .catch(reason => console.log(reason));
-                canvasConnection.createOffer(canvasOfferOptions)
-                        .then(offer => canvasConnection.setLocalDescription(offer))
-                        .then(() => {
-                            sendToServer({
-                                type: CLIENT_TYPE.CALL,
-                                name: yourName,
-                                callee: calleeName,
-                                sdp: canvasConnection.localDescription,
-                                streamType: STREAM_TYPE.CANVAS
-                            });
-                        })
-                        .catch(reason => console.log(reason));
+                createOffer(peerConnection, faceOfferOptions, STREAM_TYPE.FACE);
+                createOffer(canvasConnection, canvasOfferOptions, STREAM_TYPE.CANVAS);
             });
+
+
 
             //when the websocket responds to you:
             //possible situations:
@@ -166,29 +154,19 @@
                     return;
                 }
 
+                let connection = (data.streamType === STREAM_TYPE.FACE) ? peerConnection : canvasConnection;
+
                 if (data.ice) {
-                    if (data.streamType === STREAM_TYPE.FACE) {
-                        peerConnection.addIceCandidate(new RTCIceCandidate(data.ice));
-                    } else {
-                        canvasConnection.addIceCandidate(new RTCIceCandidate(data.ice));
-                    }
+                    connection.addIceCandidate(new RTCIceCandidate(data.ice));
                     return;
                 }
 
                 if (data.sdp.type === 'answer') {
-                    if (data.streamType === STREAM_TYPE.FACE) {
-                        peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp))
-                                .then(() => {
-                                    console.log('Successfully received the face answer...');
-                                })
-                                .catch(reason => console.log(reason));
-                    } else {
-                        canvasConnection.setRemoteDescription(new RTCSessionDescription(data.sdp))
-                                .then(() => {
-                                    console.log('Successfully received the canvas answer...');
-                                })
-                                .catch(reason => console.log(reason));
-                    }
+                    connection.setRemoteDescription(new RTCSessionDescription(data.sdp))
+                            .then(() => {
+                                console.log('Successfully received the answer...');
+                            })
+                            .catch(reason => console.log(reason));
                 }
             };
 
