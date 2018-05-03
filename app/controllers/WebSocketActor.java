@@ -36,23 +36,14 @@ public class WebSocketActor extends UntypedActor {
             result.put("response", String.format("Hello, %s!", name));
             out.tell(result, self());
 
-        } else if (type == Const.ClientMessageType.CALL.value) {
+        } else if (type == Const.ClientMessageType.CALL.value || type == Const.ClientMessageType.ICE.value) {
 
             String callee = json.findPath("callee").asText();
             ActorRef actorRef = SignalingService.getActorRef(callee);
-            result.putPOJO("sdp", json.findPath("sdp"));
             if (actorRef != null) {
                 actorRef.tell(json, self());
             }
 
-        } else if (type == Const.ClientMessageType.ICE.value) {
-
-            String callee = json.findPath("callee").asText();
-            ActorRef actorRef = SignalingService.getActorRef(callee);
-//            result.putPOJO("ice", json.findPath("ice"));
-            if (actorRef != null) {
-                actorRef.tell(json, self());
-            }
         }
     }
 

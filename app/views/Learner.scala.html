@@ -20,15 +20,22 @@
         <button id="call">Call</button>
         <br>
         <video height="200" autoplay id="remote-video"></video>
+        <video height="200" autoplay id="canvas-video"></video>
         <br>
         <script src="@routes.Assets.versioned("javascripts/jquery-3.2.1.min.js")" type="text/javascript"></script>
         <script src="@routes.Assets.versioned("javascripts/lib/adapter.js")" type="text/javascript"></script>
         <script src="@routes.Assets.versioned("javascripts/main.js")" type="text/javascript"></script>
         <script>
             let remoteVideo = document.getElementById('remote-video');
+            let canvasVideo = document.getElementById('canvas-video');
 
-            const offerOptions = {
+            const faceOfferOptions = {
                 offerToReceiveVideo: 1,
+//                offerToReceiveAudio: 1
+            };
+
+            const canvasOfferOptions = {
+                offerToReceiveVideo: 1
             };
 
             const CLIENT_TYPE = {
@@ -36,6 +43,11 @@
                 BYE: @commons.Const.ClientMessageType.BYE.value,
                 CALL: @commons.Const.ClientMessageType.CALL.value,
                 ICE: @commons.Const.ClientMessageType.ICE.value
+            };
+
+            const STREAM_TYPE = {
+                FACE: @commons.Const.StreamType.FACE.value,
+                CANVAS: @commons.Const.StreamType.CANVAS.value
             };
 
             const iceServers = {
@@ -67,6 +79,7 @@
             };
 
             let peerConnection = new RTCPeerConnection(iceServers);
+            let canvasConnection = new RTCPeerConnection(iceServers);
             let yourName, calleeName;
 
             peerConnection.onicecandidate = (event) => {
@@ -76,13 +89,32 @@
                         ice: event.candidate,
                         name: yourName,
                         callee: calleeName,
+                        streamType: STREAM_TYPE.FACE
                     });
                 }
             };
 
             peerConnection.ontrack = (event) => {
-                console.log('On track...');
+                console.log('On camera track...');
                 remoteVideo.srcObject = event.streams[0];
+                console.log(event);
+            };
+
+            canvasConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    sendToServer({
+                        type: CLIENT_TYPE.ICE,
+                        ice: event.candidate,
+                        name: yourName,
+                        callee: calleeName,
+                        streamType: STREAM_TYPE.CANVAS
+                    });
+                }
+            };
+
+            canvasConnection.ontrack = (event) => {
+                console.log('On canvas track...');
+                canvasVideo.srcObject = event.streams[0];
                 console.log(event);
             };
 
@@ -98,14 +130,27 @@
             callButton.addEventListener('click', () => {
                 calleeName = calleeTxt.value;
                 console.log(`Calling ${calleeName}...`);
-                peerConnection.createOffer(offerOptions)
+                peerConnection.createOffer(faceOfferOptions)
                         .then(offer => peerConnection.setLocalDescription(offer))
                         .then(() => {
                             sendToServer({
                                 type: CLIENT_TYPE.CALL,
                                 name: yourName,
                                 callee: calleeName,
-                                sdp: peerConnection.localDescription
+                                sdp: peerConnection.localDescription,
+                                streamType: STREAM_TYPE.FACE
+                            });
+                        })
+                        .catch(reason => console.log(reason));
+                canvasConnection.createOffer(canvasOfferOptions)
+                        .then(offer => canvasConnection.setLocalDescription(offer))
+                        .then(() => {
+                            sendToServer({
+                                type: CLIENT_TYPE.CALL,
+                                name: yourName,
+                                callee: calleeName,
+                                sdp: canvasConnection.localDescription,
+                                streamType: STREAM_TYPE.CANVAS
                             });
                         })
                         .catch(reason => console.log(reason));
@@ -122,16 +167,28 @@
                 }
 
                 if (data.ice) {
-                    peerConnection.addIceCandidate(new RTCIceCandidate(data.ice));
+                    if (data.streamType === STREAM_TYPE.FACE) {
+                        peerConnection.addIceCandidate(new RTCIceCandidate(data.ice));
+                    } else {
+                        canvasConnection.addIceCandidate(new RTCIceCandidate(data.ice));
+                    }
                     return;
                 }
 
                 if (data.sdp.type === 'answer') {
-                    peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp))
-                            .then(() => {
-                                console.log('Successfully received the answer...');
-                            })
-                            .catch(reason => console.log(reason));
+                    if (data.streamType === STREAM_TYPE.FACE) {
+                        peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp))
+                                .then(() => {
+                                    console.log('Successfully received the face answer...');
+                                })
+                                .catch(reason => console.log(reason));
+                    } else {
+                        canvasConnection.setRemoteDescription(new RTCSessionDescription(data.sdp))
+                                .then(() => {
+                                    console.log('Successfully received the canvas answer...');
+                                })
+                                .catch(reason => console.log(reason));
+                    }
                 }
             };
 

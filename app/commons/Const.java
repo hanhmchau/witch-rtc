@@ -15,12 +15,13 @@ public class Const {
         }
     }
 
-    public enum ServerMessageType {
-        OFFER(1);
+    public enum StreamType {
+        FACE(1),
+        CANVAS(2);
 
         public int value;
 
-        ServerMessageType(int value) {
+        StreamType(int value) {
             this.value = value;
         }
     }
