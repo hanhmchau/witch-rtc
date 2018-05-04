@@ -3,10 +3,12 @@ package commons;
 public class Const {
 
     public enum ClientMessageType {
-        HELLO(1),
+        INSTRUCTOR_HELLO(0),
+        LEARNER_HELLO(1),
         CALL(2),
         BYE(3),
-        ICE(4);
+        ICE(4),
+        KNOCK(5);
 
         public int value;
 
@@ -22,6 +24,16 @@ public class Const {
         public int value;
 
         StreamType(int value) {
+            this.value = value;
+        }
+    }
+
+    public enum ServerMessageType {
+        CAN_MAKE_OFFER(0);
+
+        public int value;
+
+        ServerMessageType(int value) {
             this.value = value;
         }
     }

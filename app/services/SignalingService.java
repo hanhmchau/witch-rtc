@@ -2,25 +2,21 @@ package services;
 
 import akka.actor.ActorRef;
 import akka.actor.dsl.Creators;
+import models.Peer;
+import models.Room;
 
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
+import java.util.*;
 
 public class SignalingService {
 
     // TODO: refactor this to use Redis and whatnot
-    private static Map<String, ActorRef> clients = new HashMap<>();
+    private static Map<Integer, Room> rooms = new HashMap<>();
 
-    public static void addNewClient(String name, ActorRef actorRef) {
-        clients.put(name, actorRef);
+    public static Room startRoom(int roomId) {
+        return rooms.putIfAbsent(roomId, new Room(roomId));
     }
 
-    public static void removeClient(ActorRef closedActor) {
-        clients.entrySet().removeIf(client -> client.getValue().compareTo(closedActor) == 0);
-    }
-
-    public static ActorRef getActorRef(String name) {
-        return clients.get(name);
+    public static Optional<Room> getRoomById(int roomId) {
+        return Optional.of(rooms.get(roomId));
     }
 }

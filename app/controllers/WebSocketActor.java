@@ -4,11 +4,14 @@ import akka.actor.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import commons.Const;
+import models.Peer;
+import models.Room;
 import play.libs.Json;
 import services.SignalingService;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 public class WebSocketActor extends UntypedActor {
 
@@ -27,28 +30,38 @@ public class WebSocketActor extends UntypedActor {
         int type = json.findPath("type").asInt();
         String name = json.findPath("name").asText();
 
+        int roomId = json.findPath("room").asInt();
+        Room room = SignalingService.getRoomById(roomId).orElse(SignalingService.startRoom(roomId));
+
         ObjectNode result = Json.newObject();
         result.putPOJO("name", name);
+        result.put("room", roomId);
 
-        if (type == Const.ClientMessageType.HELLO.value) {
-
-            SignalingService.addNewClient(name, out);
-            result.put("response", String.format("Hello, %s!", name));
-            out.tell(result, self());
-
-        } else if (type == Const.ClientMessageType.CALL.value || type == Const.ClientMessageType.ICE.value) {
+        if (type == Const.ClientMessageType.CALL.value || type == Const.ClientMessageType.ICE.value) {
 
             String callee = json.findPath("callee").asText();
-            ActorRef actorRef = SignalingService.getActorRef(callee);
-            if (actorRef != null) {
-                actorRef.tell(json, self());
+            Peer peer = room.findPeerByName(callee);
+            if (peer != null) {
+                peer.actorRef.tell(json, self());
             }
 
+        } else if (type == Const.ClientMessageType.INSTRUCTOR_HELLO.value) {
+
+            room.addInstructor(name, out);
+            result.put("notice", Const.ServerMessageType.CAN_MAKE_OFFER.value);
+            room.getLearners().forEach(peer -> peer.actorRef.tell(result, self()));
+
+        } else if (type == Const.ClientMessageType.LEARNER_HELLO.value) {
+
+            room.addNewLearner(name, out);
+            if (room.hasInstructor()) {
+                result.put("notice", Const.ServerMessageType.CAN_MAKE_OFFER.value);
+                out.tell(result, self());
+            }
         }
     }
 
     @Override
     public void postStop() throws Exception {
-        SignalingService.removeClient(out);
     }
 }

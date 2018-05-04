@@ -31,7 +31,8 @@
             };
 
             const CLIENT_TYPE = {
-                HELLO: @commons.Const.ClientMessageType.HELLO.value,
+                INSTRUCTOR_HELLO: @commons.Const.ClientMessageType.INSTRUCTOR_HELLO.value,
+                LEARNER_HELLO: @commons.Const.ClientMessageType.LEARNER_HELLO.value,
                 BYE: @commons.Const.ClientMessageType.BYE.value,
                 CALL: @commons.Const.ClientMessageType.CALL.value,
                 ICE: @commons.Const.ClientMessageType.ICE.value
@@ -94,7 +95,7 @@
                 yourName = nameTxt.value;
                 nameTxt.disabled = true;
                 sendToServer({
-                    type: CLIENT_TYPE.HELLO,
+                    type: CLIENT_TYPE.INSTRUCTOR_HELLO,
                     name: yourName
                 });
             });
