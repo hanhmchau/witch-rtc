@@ -3,12 +3,11 @@ package commons;
 public class Const {
 
     public enum ClientMessageType {
-        INSTRUCTOR_HELLO(0),
         LEARNER_HELLO(1),
-        CALL(2),
-        BYE(3),
-        ICE(4),
-        KNOCK(5);
+        INSTRUCTOR_HELLO(2),
+        CALL(3),
+        BYE(4),
+        ICE(5);
 
         public int value;
 
@@ -29,7 +28,7 @@ public class Const {
     }
 
     public enum ServerMessageType {
-        CAN_MAKE_OFFER(0);
+        CAN_MAKE_OFFER(1);
 
         public int value;
 

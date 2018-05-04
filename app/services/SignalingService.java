@@ -13,10 +13,17 @@ public class SignalingService {
     private static Map<Integer, Room> rooms = new HashMap<>();
 
     public static Room startRoom(int roomId) {
-        return rooms.putIfAbsent(roomId, new Room(roomId));
+        Room newRoom = new Room(roomId);
+        rooms.put(roomId, newRoom);
+        return newRoom;
     }
 
-    public static Optional<Room> getRoomById(int roomId) {
-        return Optional.of(rooms.get(roomId));
+    public static Room getRoomById(int roomId) {
+        int n = 0;
+        return rooms.get(roomId);
+    }
+
+    public static void removePeer(ActorRef actorRef) {
+        rooms.values().forEach(room -> room.removePeer(actorRef));
     }
 }

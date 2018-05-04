@@ -30,7 +30,18 @@ public class Room {
     }
 
     public Peer findPeerByName(String peerName) {
+        if (instructor != null && instructor.name.equals(peerName)) {
+            return instructor;
+        }
         return learners.stream().filter(peer -> peer.name.equals(peerName)).findFirst().orElse(null);
+    }
+
+    public void removePeer(ActorRef actorRef) {
+        if (instructor.actorRef.compareTo(actorRef) == 0) {
+            instructor = null;
+            return;
+        }
+        learners.removeIf(peer -> peer.actorRef.compareTo(actorRef) == 0);
     }
 
     public int getRoomId() {

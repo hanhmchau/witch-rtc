@@ -11,7 +11,11 @@
         <label>Your name:</label>
         <br>
         <input id="name" type="text" value="Witch" autocomplete="off" disabled />
+        <br><br>
+        <label>Your room:</label>
         <br>
+        <input id="room" type="text" value="1" autocomplete="off" disabled />
+        <br><br>
         <button id="connect">Connect</button>
         <br><br>
         <video height="200" autoplay id="local-video"></video>
@@ -56,6 +60,7 @@
             };
 
             let nameTxt = document.getElementById('name');
+            let roomTxt = document.getElementById('room');
             let connectButton = document.getElementById('connect');
 
             let webSocketUrl = '@routes.WebRTCController.signalingSocket().webSocketURL()';
@@ -84,6 +89,7 @@
                             name: yourName,
                             callee: calleeName,
                             streamType: streamType,
+                            room: roomTxt.value
                         });
                     }
                 };
@@ -96,7 +102,8 @@
                 nameTxt.disabled = true;
                 sendToServer({
                     type: CLIENT_TYPE.INSTRUCTOR_HELLO,
-                    name: yourName
+                    name: yourName,
+                    room: roomTxt.value
                 });
             });
 
@@ -112,6 +119,7 @@
                                 callee: calleeName,
                                 sdp: connection.localDescription,
                                 streamType: streamType,
+                                room: roomTxt.value
                             });
                             console.log('Successfully sending answer...');
                         })

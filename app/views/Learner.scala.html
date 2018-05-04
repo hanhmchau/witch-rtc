@@ -10,15 +10,15 @@
         <label>Your name:</label>
         <br>
         <input id="name" type="text" autocomplete="off" />
-        <br>
-        <button id="connect">Connect</button>
         <br><br>
-        <label>Who do you want to call?</label>
+        <label>What room do you want to join?</label>
         <br>
-        <input id="callee" type="text" value="Witch" autocomplete="off" disabled />
+        <input id="room" type="text" value="1" autocomplete="off" disabled />
+        <br><br>
+        <button id="join">Join</button>
         <br>
-        <button id="call">Call</button>
-        <br>
+        <span id="status"></span>
+        <br><br>
         <video height="200" autoplay id="remote-video"></video>
         <video height="200" autoplay id="canvas-video"></video>
         <br>
@@ -51,6 +51,10 @@
                 CANVAS: @commons.Const.StreamType.CANVAS.value
             };
 
+            const SERVER_TYPE = {
+                CAN_MAKE_OFFER: @commons.Const.ServerMessageType.CAN_MAKE_OFFER.value
+            };
+
             const iceServers = {
                 'iceServers':
                         [{
@@ -64,9 +68,10 @@
             };
 
             let nameTxt = document.getElementById('name');
-            let calleeTxt = document.getElementById('callee');
-            let connectButton = document.getElementById('connect');
-            let callButton = document.getElementById('call');
+            let roomTxt = document.getElementById('room');
+//            let connectButton = document.getElementById('connect');
+            let joinButton = document.getElementById('join');
+            let status = document.getElementById('status');
 
             let webSocketUrl = '@routes.WebRTCController.signalingSocket().webSocketURL()';
             if (location.protocol === 'https:') {
@@ -80,7 +85,6 @@
             };
 
             let yourName, calleeName;
-            let roomId;
 
             let addOnIceCandidateHandler = (connection, streamType) => {
                 connection.onicecandidate = (event) => {
@@ -90,7 +94,8 @@
                             ice: event.candidate,
                             name: yourName,
                             callee: calleeName,
-                            streamType: streamType
+                            streamType: streamType,
+                            room: roomTxt.value
                         });
                     }
                 };
@@ -113,15 +118,6 @@
             let peerConnection = createConnection(STREAM_TYPE.FACE, remoteVideo);
             let canvasConnection = createConnection(STREAM_TYPE.CANVAS, canvasVideo);
 
-            connectButton.addEventListener('click', () => {
-                yourName = nameTxt.value;
-                nameTxt.disabled = true;
-                sendToServer({
-                    type: CLIENT_TYPE.LEARNER_HELLO,
-                    name: yourName
-                });
-            });
-
             let createOffer = (connection, offerOptions, streamType) => {
                 connection.createOffer(offerOptions)
                         .then(offer => connection.setLocalDescription(offer))
@@ -129,19 +125,28 @@
                             sendToServer({
                                 type: CLIENT_TYPE.CALL,
                                 name: yourName,
+                                room: roomTxt.value,
                                 callee: calleeName,
                                 sdp: connection.localDescription,
                                 streamType: streamType
                             });
+                            console.log('Successfully creating offer...');
                         })
                         .catch(reason => console.log(reason));
             };
 
-            callButton.addEventListener('click', () => {
-                calleeName = calleeTxt.value;
-                console.log(`Calling ${calleeName}...`);
-                createOffer(peerConnection, faceOfferOptions, STREAM_TYPE.FACE);
-                createOffer(canvasConnection, canvasOfferOptions, STREAM_TYPE.CANVAS);
+            let sayHello = () => {
+                yourName = nameTxt.value;
+                sendToServer({
+                    type: CLIENT_TYPE.LEARNER_HELLO,
+                    name: yourName,
+                    room: roomTxt.value
+                });
+            };
+
+            joinButton.addEventListener('click', () => {
+                sayHello();
+                status.innerHTML = 'Instructor is not here yet...';
             });
 
 
@@ -153,6 +158,14 @@
 
                 if (data.response) {
                     console.log(data.response);
+                    return;
+                }
+
+                if (data.notice && data.notice === SERVER_TYPE.CAN_MAKE_OFFER) {
+                    calleeName = data.instructor;
+                    status.innerHTML = '';
+                    createOffer(peerConnection, faceOfferOptions, STREAM_TYPE.FACE);
+                    createOffer(canvasConnection, canvasOfferOptions, STREAM_TYPE.CANVAS);
                     return;
                 }
 
